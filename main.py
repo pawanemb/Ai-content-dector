@@ -1,14 +1,12 @@
 # main.py
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from typing import Optional
-import os
+from typing import Optional, Dict, Any
 from detector import AdvancedAIContentDetector
 
-# Initialize FastAPI
 app = FastAPI(title="AI Content Detector")
 
 # CORS middleware
@@ -28,13 +26,12 @@ class TextInput(BaseModel):
     min_length: Optional[int] = 50
 
 class AnalysisResult(BaseModel):
-    scores: dict
-    features: dict
+    scores: Dict[str, float]
+    features: Dict[str, Any]
     summary: str
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
-    # Read and return the index.html file
     with open("static/index.html", "r", encoding="utf-8") as f:
         return f.read()
 
@@ -53,6 +50,6 @@ async def analyze_text(input_data: TextInput):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# Mount static files if not on Vercel
-if not os.getenv("VERCEL"):
-    app.mount("/static", StaticFiles(directory="static"), name="static")
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
