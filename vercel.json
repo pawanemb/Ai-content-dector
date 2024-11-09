@@ -3,11 +3,10 @@
   "builds": [
     {
       "src": "main.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "static/**",
-      "use": "@vercel/static"
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "15mb"
+      }
     }
   ],
   "routes": [
@@ -16,16 +15,12 @@
       "dest": "/static/$1"
     },
     {
-      "src": "/api/(.*)",
-      "dest": "main.py"
-    },
-    {
       "src": "/(.*)",
-      "dest": "static/$1"
+      "dest": "main.py"
     }
   ],
   "env": {
     "PYTHONPATH": ".",
-    "MAX_BODY_SIZE": "5mb"
+    "SPACY_MODEL": "en_core_web_sm"
   }
 }
