@@ -1,3 +1,4 @@
+// static/js/app.js
 class AIDetectorApp {
     constructor() {
         this.initializeElements();
@@ -12,29 +13,27 @@ class AIDetectorApp {
         
         // Results elements
         this.resultsSection = document.getElementById('resultsSection');
-        this.loadingIndicator = document.getElementById('loadingIndicator');
         this.overallScore = document.getElementById('overallScore');
         this.scoreBar = document.getElementById('scoreBar');
-        this.featureScores = document.getElementById('featureScores');
-        this.detailedAnalysis = document.getElementById('detailedAnalysis');
-        this.visualizationChart = document.getElementById('visualizationChart');
+        this.categoryScores = document.getElementById('categoryScores');
+        this.analysisText = document.getElementById('analysisText');
     }
 
     attachEventListeners() {
-        // Update character count and button state
+        // Text input handler
         this.textInput.addEventListener('input', () => {
             const length = this.textInput.value.length;
             this.charCount.textContent = `${length} characters`;
             this.analyzeBtn.disabled = length < 50;
         });
 
-        // Handle analysis button click
+        // Analyze button handler
         this.analyzeBtn.addEventListener('click', () => this.analyzeText());
     }
 
     async analyzeText() {
         try {
-            this.showLoading(true);
+            this.setLoading(true);
             
             const response = await fetch('/api/analyze', {
                 method: 'POST',
@@ -56,93 +55,81 @@ class AIDetectorApp {
         } catch (error) {
             this.showError(error.message);
         } finally {
-            this.showLoading(false);
+            this.setLoading(false);
         }
     }
 
     displayResults(result) {
         // Show results section
         this.resultsSection.classList.remove('hidden');
-        
+        this.resultsSection.classList.add('fade-in');
+
         // Update overall score
         const overallScore = result.scores.overall;
         this.overallScore.textContent = `${(overallScore * 100).toFixed(1)}%`;
+        
+        // Update score bar
         this.scoreBar.style.width = `${overallScore * 100}%`;
-        this.scoreBar.className = this.getScoreColorClass(overallScore);
+        this.scoreBar.className = `score-bar-fill h-2.5 rounded-full ${this.getScoreColorClass(overallScore)}`;
 
-        // Update feature scores
-        this.updateFeatureScores(result.scores);
-        
-        // Update detailed analysis
-        this.detailedAnalysis.innerHTML = result.summary.replace(/\n/g, '<br>');
-        
-        // Create visualization
-        this.createVisualization(result.scores);
+        // Update category scores
+        this.displayCategoryScores(result.scores);
+
+        // Update analysis text
+        this.analysisText.textContent = result.summary;
     }
 
-    updateFeatureScores(scores) {
-        this.featureScores.innerHTML = '';
+    displayCategoryScores(scores) {
+        this.categoryScores.innerHTML = '';
         
-        Object.entries(scores).forEach(([feature, score]) => {
-            if (feature === 'overall') return;
-            
+        Object.entries(scores).forEach(([category, score]) => {
+            if (category === 'overall') return;
+
             const card = document.createElement('div');
-            card.className = 'feature-card';
+            card.className = 'bg-gray-50 p-4 rounded-lg';
             card.innerHTML = `
-                <h4>${feature.charAt(0).toUpperCase() + feature.slice(1)}</h4>
-                <div class="feature-score">${(score * 100).toFixed(1)}%</div>
-                <div class="score-bar">
-                    <div class="score-bar-fill ${this.getScoreColorClass(score)}" 
+                <h4 class="font-medium mb-2">${this.formatCategoryName(category)}</h4>
+                <div class="text-lg font-bold mb-2">${(score * 100).toFixed(1)}%</div>
+                <div class="w-full bg-gray-200 rounded-full h-1.5">
+                    <div class="h-1.5 rounded-full ${this.getScoreColorClass(score)}" 
                          style="width: ${score * 100}%"></div>
                 </div>
             `;
-            this.featureScores.appendChild(card);
+            this.categoryScores.appendChild(card);
         });
     }
 
-    createVisualization(scores) {
-        const data = [{
-            type: 'bar',
-            x: Object.keys(scores).filter(k => k !== 'overall'),
-            y: Object.values(scores).filter((_, i) => Object.keys(scores)[i] !== 'overall').map(v => v * 100),
-            marker: {
-                color: Object.values(scores)
-                    .filter((_, i) => Object.keys(scores)[i] !== 'overall')
-                    .map(score => this.getScoreColor(score))
-            }
-        }];
-
-        const layout = {
-            title: 'Feature Score Distribution',
-            yaxis: {
-                title: 'Score (%)',
-                range: [0, 100]
-            },
-            margin: { t: 40, r: 20, b: 40, l: 40 }
-        };
-
-        Plotly.newPlot(this.visualizationChart, data, layout);
+    formatCategoryName(category) {
+        return category.charAt(0).toUpperCase() + category.slice(1);
     }
 
     getScoreColorClass(score) {
-        if (score < 0.4) return 'score-low';
-        if (score < 0.7) return 'score-medium';
-        return 'score-high';
+        if (score < 0.4) return 'bg-green-500';
+        if (score < 0.7) return 'bg-yellow-500';
+        return 'bg-red-500';
     }
 
-    getScoreColor(score) {
-        if (score < 0.4) return 'rgb(34, 197, 94)';
-        if (score < 0.7) return 'rgb(234, 179, 8)';
-        return 'rgb(239, 68, 68)';
-    }
-
-    showLoading(show) {
-        this.loadingIndicator.classList.toggle('hidden', !show);
-        this.analyzeBtn.disabled = show;
+    setLoading(isLoading) {
+        this.analyzeBtn.disabled = isLoading;
+        this.analyzeBtn.innerHTML = isLoading ? 
+            '<svg class="animate-spin h-5 w-5 mx-auto" viewBox="0 0 24 24">' +
+            '<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>' +
+            '<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>' :
+            'Analyze Text';
     }
 
     showError(message) {
-        alert(`Analysis failed: ${message}`);
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 fade-in';
+        errorDiv.innerHTML = `
+            <strong class="font-bold">Error!</strong>
+            <span class="block sm:inline"> ${message}</span>
+        `;
+        
+        this.resultsSection.parentNode.insertBefore(errorDiv, this.resultsSection);
+        
+        // Remove error after 5 seconds
+        setTimeout(() => errorDiv.remove(), 5000);
     }
 }
 
